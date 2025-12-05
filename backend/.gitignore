@@ -1,0 +1,9 @@
+.vs
+bin/
+obj/
+**/bin/
+**/obj/
+*.dll
+*.pdb
+**/appsettings.Development.json
+**/appsettings.*.json
