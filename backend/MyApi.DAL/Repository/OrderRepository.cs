@@ -13,6 +13,7 @@ public class OrderRepository : IOrderRepository
         {
             _context = context;
         }
+        
     
         public async Task<Order> CreateOrderAsync(Order request)
         {    
@@ -57,4 +58,15 @@ public class OrderRepository : IOrderRepository
         await _context.SaveChangesAsync();
         return order;
     }
+
+public async Task<List<Order>> GetOrdersByUserIdAsync(string userId)
+{
+    return await _context.Orders
+        .Where(o => o.UserId == userId)
+.Include(o => o.OrderItems)
+    .ThenInclude(oi => oi.product)
+        .ThenInclude(p => p.Translations)
+        .OrderByDescending(o => o.Id)
+        .ToListAsync();
+}
 }

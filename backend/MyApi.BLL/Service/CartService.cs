@@ -126,6 +126,7 @@ public class CartService : ICartService
 public async Task<BaseResponse> RemoveFromCartAsync(int productId, string userId)
 {
     var cartItem = await _cartRepository.GetCartItemAsync(userId, productId);
+
     if (cartItem == null)
     {
         return new BaseResponse
@@ -135,23 +136,15 @@ public async Task<BaseResponse> RemoveFromCartAsync(int productId, string userId
         };
     }
 
-    cartItem.Count -= 1;
-
-    if (cartItem.Count <= 0)
-    {
-        await _cartRepository.DeleteAsync(cartItem);
-    }
-    else
-    {
-        await _cartRepository.UpdateAsync(cartItem);
-    }
+    await _cartRepository.DeleteAsync(cartItem);
 
     return new BaseResponse
     {
         IsSuccess = true,
         Message = "Product removed from cart successfully."
     };
-}    public async Task<BaseResponse> ClearCartAsync(string userId)
+}
+    public async Task<BaseResponse> ClearCartAsync(string userId)
     {
         await _cartRepository.ClearCartAsync(userId);
         return new BaseResponse
