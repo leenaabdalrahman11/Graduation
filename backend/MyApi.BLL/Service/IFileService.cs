@@ -6,5 +6,6 @@ namespace MyApi.BLL.Service;
     public interface IFileService      
     {
         Task<string> UploadAsync(IFormFile file);
+        Task<string?> UploadLocalFileAsync(string filePath);
         Task DeleteAsync(string url);
     }

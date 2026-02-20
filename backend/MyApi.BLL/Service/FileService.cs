@@ -1,76 +1,199 @@
-using CloudinaryDotNet;
-using CloudinaryDotNet.Actions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Options;
-using MyApi.BLL.Settings;
 
 namespace MyApi.BLL.Service;
 
 public class FileService : IFileService
 {
-    private readonly Cloudinary _cloudinary;
+    private readonly IWebHostEnvironment _environment;
+    private readonly string _imagesFolder;
 
-    public FileService(IOptions<CloudinarySettings> cloudinaryConfig)
+    public FileService(IWebHostEnvironment environment)
     {
-        var settings = cloudinaryConfig.Value;
+        _environment = environment;
 
-        var account = new Account(
-            settings.CloudName,
-            settings.ApiKey,
-            settings.ApiSecret
+        var webRootPath = _environment.WebRootPath;
+
+        if (string.IsNullOrWhiteSpace(webRootPath))
+        {
+            webRootPath = Path.Combine(
+                _environment.ContentRootPath,
+                "wwwroot"
+            );
+        }
+
+        _imagesFolder = Path.Combine(webRootPath, "images");
+
+        Directory.CreateDirectory(_imagesFolder);
+    }
+
+    public async Task<string?> UploadAsync(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            throw new Exception("File is null or empty.");
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) ||
+            !file.ContentType.StartsWith(
+                "image/",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new Exception("The uploaded file is not an image.");
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+
+        if (string.IsNullOrWhiteSpace(extension))
+            throw new Exception("The image extension is missing.");
+
+        var allowedExtensions = new[]
+        {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif"
+        };
+
+        if (!allowedExtensions.Contains(
+                extension,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            throw new Exception("Unsupported image extension.");
+        }
+
+        var uniqueFileName =
+            $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+
+        var fullPath = Path.Combine(
+            _imagesFolder,
+            uniqueFileName
         );
 
-        _cloudinary = new Cloudinary(account);
+        await using var stream = new FileStream(
+            fullPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None
+        );
+
+        await file.CopyToAsync(stream);
+
+        
+        return uniqueFileName;
     }
 
-public async Task<string?> UploadAsync(IFormFile file)
-{
-    if (file == null || file.Length == 0)
-        throw new Exception("File is null or empty");
-
-    await using var stream = file.OpenReadStream();
-
-    var uploadParams = new ImageUploadParams
+    public Task DeleteAsync(string fileNameOrUrl)
     {
-        File = new FileDescription(file.FileName, stream),
-        Folder = "products"
-    };
+        if (string.IsNullOrWhiteSpace(fileNameOrUrl))
+            return Task.CompletedTask;
 
-    var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
-    if (uploadResult.Error != null)
-    {
-        throw new Exception($"Cloudinary upload failed: {uploadResult.Error.Message}");
-    }
-
-    if (string.IsNullOrWhiteSpace(uploadResult.SecureUrl?.ToString()))
-    {
-        throw new Exception("Cloudinary upload failed: SecureUrl is null");
-    }
-
-    return uploadResult.SecureUrl.ToString();
-}
-    public async Task DeleteAsync(string fileUrl)
-    {
         try
         {
-            if (string.IsNullOrWhiteSpace(fileUrl))
-                return;
+            var fileName = GetFileName(fileNameOrUrl);
 
-            var uri = new Uri(fileUrl);
-            var segments = uri.AbsolutePath.Split('/');
+            if (string.IsNullOrWhiteSpace(fileName))
+                return Task.CompletedTask;
 
-            var uploadIndex = Array.IndexOf(segments, "upload");
-            if (uploadIndex == -1 || uploadIndex + 2 >= segments.Length)
-                return;
+            var fullPath = Path.Combine(
+                _imagesFolder,
+                fileName
+            );
 
-            var publicIdWithExtension = string.Join('/', segments.Skip(uploadIndex + 2));
-            var publicId = Path.ChangeExtension(publicIdWithExtension, null);
+            
+            var normalizedImagesFolder =
+                Path.GetFullPath(_imagesFolder);
 
-            await _cloudinary.DestroyAsync(new DeletionParams(publicId));
+            var normalizedFilePath =
+                Path.GetFullPath(fullPath);
+
+            if (!normalizedFilePath.StartsWith(
+                    normalizedImagesFolder,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.CompletedTask;
+            }
+
+            if (File.Exists(normalizedFilePath))
+                File.Delete(normalizedFilePath);
         }
         catch
         {
         }
+
+        return Task.CompletedTask;
+    }
+
+    public async Task<string?> UploadLocalFileAsync(
+        string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) ||
+            !File.Exists(filePath))
+        {
+            throw new Exception(
+                "File path is invalid or file does not exist."
+            );
+        }
+
+        var extension = Path.GetExtension(filePath);
+
+        if (string.IsNullOrWhiteSpace(extension))
+            throw new Exception("The image extension is missing.");
+
+        var allowedExtensions = new[]
+        {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif"
+        };
+
+        if (!allowedExtensions.Contains(
+                extension,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            throw new Exception("Unsupported image extension.");
+        }
+
+        var uniqueFileName =
+            $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+
+        var destinationPath = Path.Combine(
+            _imagesFolder,
+            uniqueFileName
+        );
+
+        await using var sourceStream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read
+        );
+
+        await using var destinationStream = new FileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None
+        );
+
+        await sourceStream.CopyToAsync(destinationStream);
+
+        return uniqueFileName;
+    }
+
+    private static string GetFileName(string fileNameOrUrl)
+    {
+        
+
+        if (Uri.TryCreate(
+                fileNameOrUrl,
+                UriKind.Absolute,
+                out var uri))
+        {
+            return Path.GetFileName(uri.LocalPath);
+        }
+
+        return Path.GetFileName(fileNameOrUrl);
     }
 }

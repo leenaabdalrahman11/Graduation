@@ -25,6 +25,13 @@ public class ProductController : ControllerBase
         var response = await _productService.GetAllProductsForAdmin();
         return Ok(new { message = _localizer["Success"].Value, response });
     }
+    [HttpPost("analyze-missing-products")]
+public async Task<IActionResult> AnalyzeMissingProducts()
+{
+    await _productService.AnalyzeMissingProducts();
+
+    return Ok("Images analyzed successfully");
+}
     [HttpPost("")]
     public async Task<IActionResult> Create([FromForm] ProductRequest request)
     {
