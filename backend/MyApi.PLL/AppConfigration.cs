@@ -36,7 +36,17 @@ public static class AppConfigration
         Services.AddScoped<ITokenService, TokenService>();
         Services.AddScoped<IOrderItemRepository, OrderItemRepository>();
         Services.AddExceptionHandler<GlobalExceptionHandler>();
+        Services.AddScoped<ICartRepository, CartRepository>();
+       Services.AddScoped<IStoreRepository, StoreRepository>();
+        Services.AddScoped<IOpenAiService, OpenAiService>();
+        Services.AddScoped<IVoiceAssistantService, VoiceAssistantService>();
+        Services.AddScoped<IVoiceInterpretationService, VoiceInterpretationService>();
+        Services.AddScoped<IVoiceProductSearchService, VoiceProductSearchService>();
+        Services.AddScoped<IVoiceTextCorrectionService, VoiceTextCorrectionService>();
+        Services.AddScoped<IProductImageAnalysisService, ProductImageAnalysisService>();
+        
         Services.AddProblemDetails();
+        Services.AddHttpClient();
     }
     
 }

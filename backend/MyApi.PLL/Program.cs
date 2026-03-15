@@ -16,9 +16,11 @@ using MyApi.DAL.Repository;
 using MyApi.PLL;
 using MyApi.BLL.MapesterConfigurations;
 using Stripe;
-using MyApi.BLL.Settings;
 using MyApiProject.MyApi.PLL.Middleware;
 using Microsoft.AspNetCore.StaticFiles;
+using MyApi.BLL.Settings;
+using MyApi.DAL.Data.Seeders;
+
 
 public class Program
 {
@@ -38,14 +40,20 @@ public class Program
                       });
 });
         Console.WriteLine($"DefaultConnection from config = '{cs}'");
-builder.Services.Configure<CloudinarySettings>(
-    builder.Configuration.GetSection("CloudinarySettings"));
+
         builder.Services.AddControllers();
         builder.Services.AddLocalization(options => options.ResourcesPath = "");
 
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()
+        );
+    });
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
             options.User.RequireUniqueEmail = true;
@@ -105,7 +113,11 @@ builder.Services.Configure<CloudinarySettings>(
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.EnableRetryOnFailure()));
         builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
         StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
-        builder.Services.AddScoped<ICartRepository, CartRepository>();
+     builder.Services.AddHttpClient();
+     builder.Services.AddScoped<IVoiceProductSearchService, VoiceProductSearchService>();
+builder.Services.AddMemoryCache();
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("CloudinarySettings"));
         var app = builder.Build();
 
         app.UseRequestLocalization(app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value);
@@ -140,17 +152,17 @@ builder.Services.Configure<CloudinarySettings>(
 
             var context = services.GetRequiredService<ApplicationDbContext>();
             context.Database.Migrate();
-
+ ProductSeeder.SeedProducts(context).Wait();
             var seedDatas = services.GetServices<ISeedData>();
             foreach (var seedData in seedDatas)
             {
                 seedData.DataSeed().Wait();
             }
         }
+        
 
         app.MapControllers();
 
         app.Run();
     }
 }
-
