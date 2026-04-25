@@ -15,3 +15,7 @@ coverage/
 .env.*
 !.env.example
 !.env.*.example
+# ASP.NET local settings
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
