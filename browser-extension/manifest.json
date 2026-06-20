@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Besaout Voice Assistant",
+  "version": "1.0.0",
+  "permissions": ["storage", "tabs", "scripting", "activeTab"],
+  "host_permissions": [
+    "http://localhost:5174/*",
+    "http://localhost:5173/*",
+    "http://localhost:5145/*",
+    "https://localhost:7291/*",
+    "http://localhost:7291/*",
+    "https://localhost:7292/*",
+    "http://localhost:7292/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "DevHub Voice Assistant"
+  },
+"content_scripts": [
+  {
+    "matches": [
+      "http://localhost:5174/*",
+      "http://localhost:5173/*",
+      "http://localhost:7291/*",
+      "https://localhost:7291/*",
+      "http://localhost:7292/*",
+      "https://localhost:7292/*"
+    ],
+    "js": ["content.js"]
+  }
+],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
