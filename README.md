@@ -131,6 +131,8 @@ Then:
 ![Browser extension interface](docs/images/VoiceExtension1.png)
 
 ![Browser extension voice assistant](docs/images/VoiceExtension2.png)
+
+![Browser extension voice assistant](docs/images/VoiceExtension3.png)
 ## Security
 
 Sensitive credentials are not included in this repository.
