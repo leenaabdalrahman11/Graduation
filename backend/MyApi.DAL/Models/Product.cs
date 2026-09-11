@@ -18,4 +18,7 @@ public class Product : BaseModel
     public DateTime CreatedAt { get; set; }
     public List<ProductImage> SubImages { get; set; }
     public List<Reviews> Reviews { get; set; }
+    public ProductVisualMetadata? VisualMetadata { get; set; }
+    public int Discount { get; set; }
+
 }

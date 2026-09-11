@@ -13,4 +13,9 @@ public class ProductResponse
         public string CreatedBy {get;set;}
         public string MainImage { get; set; }
         public List<CategoryTranslationResponse>? Translations { get; set; }
+        public ProductVisualMetadataResponse? VisualMetadata
+{
+    get;
+    set;
+}
 }
