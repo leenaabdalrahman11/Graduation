@@ -20,22 +20,32 @@ public class ProductRepository : IProductRepository
         await _context.SaveChangesAsync();
         return request;
     }
-    public async Task<List<Product>> GetAllAsync()
-    {
-        return await _context.Products.Include(p => p.Translations).Include(p => p.User).ToListAsync();
-
-    }
-    public async Task<Product?> FindByIdAsync(int id)
-    {
-        return await _context.Products.Include(p => p.Translations)
-        .Include(p=>p.SubImages)
-        .Include(p=>p.Reviews).ThenInclude(r=>r.User)
+public async Task<List<Product>> GetAllAsync()
+{
+    return await _context.Products
+        .Include(p => p.Translations)
+        .Include(p => p.User)
+        .Include(p => p.SubImages)
+        .Include(p => p.VisualMetadata)
+        .ToListAsync();
+}
+public async Task<Product?> FindByIdAsync(int id)
+{
+    return await _context.Products
+        .Include(p => p.Translations)
+        .Include(p => p.SubImages)
+        .Include(p => p.VisualMetadata)
+        .Include(p => p.Reviews)
+            .ThenInclude(r => r.User)
         .FirstOrDefaultAsync(p => p.Id == id);
-    }
-    public IQueryable<Product> Query() // Ram
-    {
-        return _context.Products.Include(p => p.Translations).AsQueryable(); // server Ram
-    }
+}
+public IQueryable<Product> Query()
+{
+    return _context.Products
+        .Include(p => p.Translations)
+        .Include(p => p.VisualMetadata)
+        .AsQueryable();
+}
     public async Task<bool> DecreaseQuantityAsync(List<(int productId, int quantity)> items)
     {
         var productIds = items.Select(i => i.productId).ToList();

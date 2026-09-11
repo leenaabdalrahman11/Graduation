@@ -10,7 +10,7 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         var errorDetails = new ErrorDetails
             {
-                Message = exception.Message,
+                Message = exception.InnerException?.Message ?? exception.Message,
              //   StackTrace = ex.InnerException?.Message ?? ex.Message,
                 StatusCode = StatusCodes.Status500InternalServerError
             };

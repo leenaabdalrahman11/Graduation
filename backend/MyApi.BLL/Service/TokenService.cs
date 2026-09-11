@@ -44,7 +44,7 @@ public class TokenService : ITokenService
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
             claims: UserClaims,
-            expires: DateTime.UtcNow.AddHours(1),
+            expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: creds
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
@@ -59,22 +59,41 @@ public class TokenService : ITokenService
             return Convert.ToBase64String(randomNumber);
         }
     }
-    public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
+public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
+{
+    var secret = _configuration["Jwt:SecretKey"]
+        ?? throw new InvalidOperationException("Jwt:SecretKey is not configured");
+
+    var tokenValidationParameters = new TokenValidationParameters
     {
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false, 
-            ValidateIssuer = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey =new SymmetricSecurityKey(Encoding.UTF8.GetBytes( _configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey is not configured"))),
-            ValidateLifetime = false
-        };
-        var tokenHandler = new JwtSecurityTokenHandler();
-        SecurityToken securityToken;
-        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken);
-        var jwtSecurityToken = securityToken as JwtSecurityToken;
-        if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-            throw new SecurityTokenException("Invalid token");
-        return principal;
+        ValidateAudience = true,
+        ValidAudience = _configuration["Jwt:Audience"],
+
+        ValidateIssuer = true,
+        ValidIssuer = _configuration["Jwt:Issuer"],
+
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+
+        ValidateLifetime = false
+    };
+
+    var tokenHandler = new JwtSecurityTokenHandler();
+
+    var principal = tokenHandler.ValidateToken(
+        token,
+        tokenValidationParameters,
+        out SecurityToken securityToken
+    );
+
+    if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+        !jwtSecurityToken.Header.Alg.Equals(
+            SecurityAlgorithms.HmacSha256,
+            StringComparison.InvariantCultureIgnoreCase))
+    {
+        throw new SecurityTokenException("Invalid token");
     }
+
+    return principal;
+}
 }
