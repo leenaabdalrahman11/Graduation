@@ -29,6 +29,7 @@ namespace MyApi.DAL.Data
         public DbSet<Order> Orders { get; set; } = null!;
         public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<Reviews> Reviews { get; set; } = null!;
+        public DbSet<ProductVisualMetadata> ProductVisualMetadata { get; set; } = null!;
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -68,6 +69,7 @@ namespace MyApi.DAL.Data
                         .WithMany()
                         .HasForeignKey(c => c.CreatedBy)
                         .OnDelete(DeleteBehavior.NoAction);
+                        
             modelBuilder.Entity<Order>()
                         .HasOne(c => c.User)
                         .WithMany()
@@ -78,6 +80,15 @@ namespace MyApi.DAL.Data
                         .WithMany(o => o.OrderItems)
                         .HasForeignKey(c => c.OrderId)
                         .OnDelete(DeleteBehavior.NoAction);
+            modelBuilder.Entity<ProductVisualMetadata>()
+    .HasOne(x => x.Product)
+    .WithOne(x => x.VisualMetadata)
+    .HasForeignKey<ProductVisualMetadata>(x => x.ProductId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<ProductVisualMetadata>()
+    .HasIndex(x => x.ProductId)
+    .IsUnique();
         }
         
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApi.DAL.Data;
 
@@ -11,9 +12,11 @@ using MyApi.DAL.Data;
 namespace MyApi.DAL.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260412160312_SeedProductsChanges")]
+    partial class SeedProductsChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -486,82 +489,6 @@ namespace MyApi.DAL.Migrations
                     b.ToTable("ProductTranslations");
                 });
 
-            modelBuilder.Entity("MyApi.DAL.Models.ProductVisualMetadata", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AnalyzedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CaptionAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CaptionEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CategoryAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CategoryEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ColorsAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ColorsEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Confidence")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("KeywordsAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("KeywordsEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MaterialAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MaterialEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModelName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PatternAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PatternEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StyleAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StyleEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SubCategoryAr")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SubCategoryEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId")
-                        .IsUnique();
-
-                    b.ToTable("ProductVisualMetadata");
-                });
-
             modelBuilder.Entity("MyApi.DAL.Models.Reviews", b =>
                 {
                     b.Property<int>("Id")
@@ -759,17 +686,6 @@ namespace MyApi.DAL.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("MyApi.DAL.Models.ProductVisualMetadata", b =>
-                {
-                    b.HasOne("MyApi.DAL.Models.Product", "Product")
-                        .WithOne("VisualMetadata")
-                        .HasForeignKey("MyApi.DAL.Models.ProductVisualMetadata", "ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("MyApi.DAL.Models.Reviews", b =>
                 {
                     b.HasOne("MyApi.DAL.Models.Product", "Product")
@@ -808,8 +724,6 @@ namespace MyApi.DAL.Migrations
                     b.Navigation("SubImages");
 
                     b.Navigation("Translations");
-
-                    b.Navigation("VisualMetadata");
                 });
 #pragma warning restore 612, 618
         }
