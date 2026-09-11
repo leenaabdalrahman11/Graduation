@@ -1,0 +1,231 @@
+﻿===== .\Areas\Admin\ProductController.cs =====
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MyApi.DAL.DTO.Requests;
+using Microsoft.Extensions.Localization;
+using MyApi.BLL.Service;
+using System.Security.Claims;
+namespace MyApi.PLL.Areas.Admin;
+
+[Area("Admin")]
+[Route("api/Admin/[controller]")]
+[Authorize(Roles = "Admin")]
+[ApiController]
+public class ProductController : ControllerBase
+{
+    private readonly IProductService _productService;
+    private readonly IStringLocalizer<SharedResources> _localizer;
+    public ProductController(IProductService productservice, IStringLocalizer<SharedResources> localizer)
+    {
+        _productService = productservice;
+        _localizer = localizer;
+    }
+    [HttpGet("")]
+    public async Task<IActionResult> Index()
+    {
+        var response = await _productService.GetAllProductsForAdmin();
+        return Ok(new { message = _localizer["Success"].Value, response });
+    }
+    [HttpPost("")]
+    public async Task<IActionResult> Create([FromForm] ProductRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+   
+        var response = await _productService.CreateProduct(request,userId);
+
+        return Ok(new { message = _localizer["Success"].Value, response });
+    }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete([FromRoute] int id)
+    {
+        var response = await _productService.DeleteProductAsync(id);
+        if (!response.IsSuccess) return BadRequest(response);
+        return Ok(new { message = _localizer["Success"].Value, response });
+    }
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update([FromRoute] int id, [FromForm] ProductRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var response = await _productService.UpdateProductAsync(id, request);
+        if (!response.IsSuccess) return BadRequest(response);
+        return Ok(new { message = _localizer["Success"].Value, response });
+    }
+
+}
+
+
+===== .\Areas\Admin\CategoriesController.cs =====
+using System.ComponentModel;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
+using MyApi.BLL.Service;
+using MyApi.DAL.DTO.Requests;
+using MyApi.PLL;
+namespace MyApi.PLL.Areas.Admin;
+
+[ApiController]
+[Route("api/[controller]")]
+//chech if User is login or not - [Authorize]
+public class CategoriesController : ControllerBase
+{
+        private readonly ICategoryService _category;
+    private readonly IStringLocalizer<SharedResources> _localizer;
+    public CategoriesController(ICategoryService category,IStringLocalizer<SharedResources> localizer)
+    {
+    _localizer = localizer;
+        _category = category;
+    }
+    [HttpPost("")]
+    public async Task<IActionResult> Create([FromBody]CategoryRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);     
+        var response = await _category.CreateCategory(request, userId);
+        return Ok(new {message = _localizer["Success"].Value,response}); 
+    }
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> UpdateCategory([FromRoute] int id,[FromBody] CategoryRequest request)
+    {
+        var result = await _category.UpdateCategoryAsync(id,request);
+        if (!result.IsSuccess)
+        {
+                    if(result.Message.Contains("Not Found"))
+        {
+            return NotFound(result);
+        }
+        return BadRequest(result);
+            
+        }
+        return Ok(result);
+    }
+    [HttpPatch("toggle-status/{id}")]
+    public async Task<IActionResult> ToggleStatus(int Id)
+    {
+        var result = await _category.ToggleStatus(Id);
+        if (!result.IsSuccess)
+        {
+        if(result.Message.Contains("Not Found"))
+        {
+            return NotFound(result);
+        }
+        return BadRequest(result);
+            
+        }
+        return Ok(result);
+    }
+    
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteCAtegory([FromRoute] int id)
+    {
+        var result = await _category.DeleteCategoryAsync(id);
+        if (!result.IsSuccess)
+        {
+            
+            if(result.Message.Contains("Not Found"))
+            {
+                return NotFound(result);
+            }
+            return BadRequest(result);
+        }
+        return Ok(result);        
+    }
+}
+
+===== .\Areas\Admin\OrdersController.cs =====
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
+using MyApi.DAL.DTO.Requests;
+using MyApi.DAL.Models;
+using MyApi.PLL;
+using MyApiProject.MyApi.BLL.Service;
+    
+namespace MyApiProject.MyApi.PLL.Areas.Admin
+{
+    [Route("api/admin/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "Admin")]
+    public class OrdersController : ControllerBase
+    {
+        private readonly IOrderService _orderService;
+        private readonly IStringLocalizer<SharedResources> _localizer;
+        public OrdersController(IOrderService orderService,IStringLocalizer<SharedResources> localizer)
+        {
+            _orderService = orderService;
+            _localizer = localizer;
+        }
+
+        [HttpGet("")]
+        public async Task<IActionResult> GetOrdersByStatus([FromQuery] OrderStatus status =  OrderStatus.Pending)
+        {
+            var orders = await _orderService.GetOrdersByStatusAsync(status);
+            return Ok(new { Message = _localizer["Success"], Orders = orders });
+        }
+    
+        [HttpPatch("{orderId}")]
+        public async Task<IActionResult> UpdateStatus([FromRoute] int orderId , [FromBody] UpdateOrderStatusRequest request)
+        {
+            var result = await _orderService.UpdateOrderStatusAsync(orderId , request.Status);
+            if(!result.IsSuccess) return BadRequest(result);
+            return Ok(result);
+        }
+    }
+}
+
+===== .\Areas\Admin\ManageController.cs =====
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using MyApi.BLL.Service;
+using MyApi.DAL.DTO.Requests;
+
+namespace MyApi.PLL.Areas.Admin
+{
+    [Route("api/admin/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "Admin")]
+    public class ManageController : ControllerBase
+    {
+        private readonly IManageUserService _manageUserService;
+        public ManageController(IManageUserService manageUserService)
+        {
+            _manageUserService = manageUserService;
+        }
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _manageUserService.GetUsersAsync();
+
+            return Ok(users);
+            
+        }
+        [HttpPatch("block/{Id}")]
+        public async Task<IActionResult> BlockUser(string Id)
+        {
+            var result = await _manageUserService.BlockUserAsync(Id);
+            if (!result.IsSuccess) return BadRequest(result);
+            return Ok(result);
+        }
+        [HttpPatch("unblock/{Id}")]
+        public async Task<IActionResult> UnblockUser(string Id)
+        {
+            var result = await _manageUserService.UnblockUserAsync(Id);
+            if (!result.IsSuccess) return BadRequest(result);
+            return Ok(result);
+        }
+        [HttpPatch("change-role")]
+        [Authorize(Roles = "superAdmin")]
+
+        public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleRequest request)
+        {
+            var result = await _manageUserService.ChangeUserRoleAsync(request);
+            if (!result.IsSuccess) return BadRequest(result);
+            return Ok(result);
+        }
+
+    }
+}
+
