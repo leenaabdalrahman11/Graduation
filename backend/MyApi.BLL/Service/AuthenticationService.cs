@@ -175,9 +175,8 @@ namespace MyApi.BLL.Service
                     await _userManager.AddToRoleAsync(user, "User");
 
                     var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    token = Uri.EscapeDataString(token);
 
-                    var emailUrl = $"http://leena12.runasp.net/api/auth/Account/confirmEmail?userId={user.Id}&token={token}";
+                    var emailUrl = $"https://localhost:7291/api/auth/Account/confirmEmail?userId={user.Id}&token={Uri.EscapeDataString(token)}";
                     var htmlMessage = $"<h1>Thank you for registering!</h1><a href='{emailUrl}'>Click here to verify your email</a>";
                     await _emailSender.SendEmailAsync(user.Email!, "Welcome to MyApi", htmlMessage);
 

@@ -9,8 +9,8 @@ export default function BestSellers() {
 
   useEffect(() => {
     fetch(
-      `${baseUrl}/api/Products?lang=en&limit=10&sortBy=price&asc=true`,
-    )
+  `${baseUrl}/api/Products?lang=en&limit=5&sortBy=price&asc=true&categoryId=26`
+)
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.response.data);
@@ -22,12 +22,30 @@ export default function BestSellers() {
 
   if (loading) return <p className="text-center py-8">Loading...</p>;
 
-  const chunks = [];
-  const doubled = [...products];
+  const productsPerSlide = 4;
+const numberOfSlides = Math.ceil(
+  products.length / productsPerSlide
+);
 
-  for (let i = 0; i < products.length; i += 4) {
-    chunks.push(doubled.slice(i, i + 4));
-  }
+const chunks = Array.from(
+  { length: numberOfSlides },
+  (_, slideIndex) =>
+    Array.from(
+      {
+        length: Math.min(
+          productsPerSlide,
+          products.length
+        ),
+      },
+      (_, productIndex) => {
+        const index =
+          (slideIndex * productsPerSlide + productIndex) %
+          products.length;
+
+        return products[index];
+      }
+    )
+);
 
   return (
     <section className="w-full px-4 sm:px-6 lg:px-10 py-10 sm:py-12">
@@ -137,7 +155,7 @@ export default function BestSellers() {
               className="text-[#bc4c2a] text-sm sm:text-base md:text-lg border border-[#bc4c2a]
               hover:bg-[#bc4c2a] hover:text-white transition-colors py-2.5 px-6 sm:px-8"
             >
-              Shop All Bags
+              Shop All Products
             </button>
           </Link>
         </div>

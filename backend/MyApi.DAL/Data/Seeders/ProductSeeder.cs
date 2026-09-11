@@ -13,8 +13,16 @@ public static class ProductSeeder
             return;
 
 
-        var csvPath = @"C:\Users\leena\Desktop\ProductsData\products_fixed.csv";
+var csvPath = Environment.GetEnvironmentVariable("PRODUCTS_CSV_PATH");
 
+if (string.IsNullOrWhiteSpace(csvPath) || !File.Exists(csvPath))
+{
+    Console.WriteLine(
+        "Products CSV was not provided. Product seeding was skipped."
+    );
+
+    return;
+}
 
 List<string> lines = new();
 

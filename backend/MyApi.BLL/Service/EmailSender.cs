@@ -1,38 +1,55 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Mail;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+
 namespace MyApi.BLL.Service;
 
 public class EmailSender : IEmailSender
 {
-  public Task SendEmailAsync(string email, string subject, string htmlMessage)
-  {
-    //smtp --> email address + Port number 
-    var client = new SmtpClient("smtp.gmail.com", 587)
+    private readonly IConfiguration _configuration;
+
+    public EmailSender(IConfiguration configuration)
     {
-      EnableSsl = true,
-      UseDefaultCredentials = false,
-      Credentials = new NetworkCredential(
-                  "leenasa272@gmail.com",
-                  "xkvzduxvecxadnng"   
-              )
-    };
+        _configuration = configuration;
+    }
 
-    var mailMessage = new MailMessage(
-        from: "leenasa272@gmail.com",
-        to: email,
-        subject: subject,
-        body: htmlMessage
-    )
+    public Task SendEmailAsync(
+        string email,
+        string subject,
+        string htmlMessage)
     {
-      IsBodyHtml = true
-    };
+        var senderEmail =
+            _configuration["EmailSettings:SenderEmail"]
+            ?? throw new InvalidOperationException(
+                "Email sender address is missing."
+            );
 
-    return client.SendMailAsync(mailMessage);
-  }
+        var appPassword =
+            _configuration["EmailSettings:AppPassword"]
+            ?? throw new InvalidOperationException(
+                "Email app password is missing."
+            );
 
+        var client = new SmtpClient("smtp.gmail.com", 587)
+        {
+            EnableSsl = true,
+            UseDefaultCredentials = false,
+            Credentials = new NetworkCredential(
+                senderEmail,
+                appPassword
+            )
+        };
+
+        var mailMessage = new MailMessage(
+            from: senderEmail,
+            to: email,
+            subject: subject,
+            body: htmlMessage
+        )
+        {
+            IsBodyHtml = true
+        };
+
+        return client.SendMailAsync(mailMessage);
+    }
 }
