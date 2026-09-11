@@ -1,0 +1,382 @@
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+using Mapster;
+using MyApi.DAL.Repository;
+using Microsoft.Extensions.Configuration;
+
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+
+using MyApi.DAL.DTO.Requests;
+using MyApi.DAL.DTO.Response;
+using MyApi.DAL.Models;
+using MyApi.BLL.Service;
+using Microsoft.EntityFrameworkCore;
+
+namespace MyApi.BLL.Service
+{
+    public class AuthenticationService : IAuthenticationService
+    {
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _configuration;
+        private readonly IEmailSender _emailSender;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly ITokenService _tokenService;
+        public AuthenticationService(UserManager<ApplicationUser> userManager, IConfiguration configuration,
+        IEmailSender emailSender, SignInManager<ApplicationUser> signInManager, ITokenService tokenService)
+        {
+            _userManager = userManager;
+            _configuration = configuration;
+            _emailSender = emailSender;
+            _signInManager = signInManager;
+            _tokenService = tokenService;
+        }
+        public async Task<LoginResponse> LoginAsync(LoginRequest loginRequest)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(loginRequest.Email))
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "Email is required",
+                        UserId = null
+                    };
+                }
+                if (string.IsNullOrWhiteSpace(loginRequest.Password))
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "Password is required",
+                        UserId = null
+                    };
+                }
+
+                var user = await _userManager.FindByEmailAsync(loginRequest.Email);
+                if (user == null)
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "User not found",
+                        UserId = null
+                    };
+                }
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "User account is locked",
+                        UserId = null
+                    };
+
+                }
+                var passwordValid = await _userManager.CheckPasswordAsync(user, loginRequest.Password);
+                if (!passwordValid)
+                {
+                    await _userManager.AccessFailedAsync(user);
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "Invalid password",
+                        UserId = null
+                    };
+                }
+
+                // reset access failed count on success
+                await _userManager.ResetAccessFailedCountAsync(user);
+
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "User account is locked",
+                        UserId = null
+                    };
+                }
+                var result = await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, true);
+                if (result.IsLockedOut)
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "User account is locked Due to multiple failed attempts",
+                        UserId = null
+                    };
+
+                }
+                else if (result.IsNotAllowed)
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "Please confirm your email",
+                        UserId = null
+                    };
+
+                }
+
+                if (!result.Succeeded)
+                {
+                    return new LoginResponse
+                    {
+                        IsSuccess = false,
+                        Message = "Invalid Password",
+                        UserId = null
+                    };
+                }
+                var accessToken = await _tokenService.GenerateAccessToken(user);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await _userManager.UpdateAsync(user);
+                return new LoginResponse
+                {
+                    IsSuccess = true,
+                    Message = "Login successful",
+                    UserId = user.Id,
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new LoginResponse()
+                {
+                    IsSuccess = false,
+                    Message = "An error occurred during registration",
+                    UserId = null!,
+                    Errors = new List<string> { ex.Message }
+
+                };
+            }
+
+        }
+        public async Task<RegisterResponse> RegisterAsync(RegisterUserRequest registerRequest)
+        {
+            try
+            {
+                var user = registerRequest.Adapt<ApplicationUser>();
+                user.UserName = registerRequest.Email;
+
+                var result = await _userManager.CreateAsync(user, registerRequest.Password);
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, "User");
+
+                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    token = Uri.EscapeDataString(token);
+
+                    var emailUrl = $"http://leena12.runasp.net/api/auth/Account/confirmEmail?userId={user.Id}&token={token}";
+                    var htmlMessage = $"<h1>Thank you for registering!</h1><a href='{emailUrl}'>Click here to verify your email</a>";
+                    await _emailSender.SendEmailAsync(user.Email!, "Welcome to MyApi", htmlMessage);
+
+                    return new RegisterResponse
+                    {
+                        IsSuccess = true,
+                        Message = "Registration successful. Please check your email to confirm.",
+                        UserId = user.Id,
+                        Errors = Array.Empty<string>()
+                    };
+                }
+
+                return new RegisterResponse
+                {
+                    IsSuccess = false,
+                    Message = "Registration failed",
+                    UserId = null!,
+                    Errors = result.Errors.Select(e => e.Description)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new RegisterResponse
+                {
+                    IsSuccess = false,
+                    Message = "An error occurred during registration",
+                    UserId = null!,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+        public async Task<string> ConfirmEmailAsync(string userId, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return "User not found";
+            }
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            if (result.Succeeded)
+            {
+                return "Email confirmed";
+            }
+            return "Email confirmation failed: " + string.Join(", ", result.Errors.Select(e => e.Description));
+        }
+        public async Task<ForgotPasswordResponse> RequestPasswordResetAsync(ForgotPasswordRequest request)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return new ForgotPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "User not found",
+                    Errors = Array.Empty<string>()
+                };
+            }
+            var random = new Random();
+            var resetCode = random.Next(1000, 9999).ToString();
+            user.CodeResetPassword = resetCode;
+            user.ExpireResetPassword = DateTime.UtcNow.AddMinutes(15);
+            await _userManager.UpdateAsync(user);
+            await _emailSender.SendEmailAsync(user.Email!, "Password Reset Code", $"Your password reset code is: {resetCode}");
+
+            return new ForgotPasswordResponse
+            {
+                IsSuccess = true,
+                Message = "Password reset email sent. Please check your email.",
+                Errors = Array.Empty<string>()
+            };
+        }
+
+        public async Task<RestPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "Email is required",
+                    Errors = Array.Empty<string>()
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ResetCode))
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "Reset code is required",
+                    Errors = Array.Empty<string>()
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "New password is required",
+                    Errors = Array.Empty<string>()
+                };
+            }
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "User not found",
+                    Errors = Array.Empty<string>()
+                };
+            }
+            if (user.CodeResetPassword != request.ResetCode || user.ExpireResetPassword < DateTime.UtcNow)
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "Invalid or expired reset code",
+                    Errors = Array.Empty<string>()
+                };
+            }
+            else if (user.ExpireResetPassword < DateTime.UtcNow)
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "Reset code has expired",
+                    Errors = Array.Empty<string>()
+                };
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
+            if (!result.Succeeded)
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = false,
+                    Message = "Password does not meet requirements",
+                    Errors = result.Errors.Select(e => e.Description)
+                };
+            }
+            await _emailSender.SendEmailAsync(user.Email!, "Password Reset Successful", "Your password has been successfully reset.");
+            if (result.Succeeded)
+            {
+                return new RestPasswordResponse
+                {
+                    IsSuccess = true,
+                    Message = "Password reset successful",
+                    Errors = Array.Empty<string>()
+                };
+            }
+            user.CodeResetPassword = null;
+            await _userManager.UpdateAsync(user);
+            return new RestPasswordResponse
+            {
+                IsSuccess = false,
+                Message = "Password reset failed",
+                Errors = result.Errors.Select(e => e.Description)
+            };
+        }
+        public async Task<LoginResponse> RefreshTokenAsync(TokenApiModelRequest request)
+        {
+            string accessToken = request.AccessToken;
+            string refreshToken = request.RefreshToken;
+            var principal = _tokenService.GetPrincipalFromExpiredToken(accessToken);
+            var userName = principal.Identity!.Name;
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == userName);
+            if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            {
+                return new LoginResponse
+                {
+                    IsSuccess = false,
+                    Message = "Invalid refresh token",
+                    UserId = null,
+                    AccessToken = null,
+                    RefreshToken = null
+                };
+            }
+            var newAccessToken = await _tokenService.GenerateAccessToken(user);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
+            await _userManager.UpdateAsync(user);
+            return new LoginResponse
+            {
+                IsSuccess = true,
+                Message = "Token refreshed successfully",
+                UserId = user.Id,
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken
+            };
+
+
+
+        }
+    }
+}
+
