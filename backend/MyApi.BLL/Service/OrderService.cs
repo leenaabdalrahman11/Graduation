@@ -58,4 +58,28 @@ public class OrderService : IOrderService
             Message = "Order status updated successfully"
         };
     }
+public async Task<List<OrderResponse>> GetMyOrdersAsync(string userId)
+{
+    var orders = await _orderRepository.GetOrdersByUserIdAsync(userId);
+
+    return orders.Select(order => new OrderResponse
+    {
+        Id = order.Id,
+OrderStatus = order.OrderStatus.ToString(),
+PaymentStatus = order.PaymentStatus.ToString(),
+        AmountPaid = order.AmountPaid,
+        UserName = order.User?.UserName,
+
+OrderItems = order.OrderItems.Select(item => new OrderItemResponse
+{
+    ProductId = item.ProductId,
+    ProductName = item.product != null
+        ? item.product.Translations.FirstOrDefault().Name
+        : null,
+    Price = item.UnitPrice,
+    Count = item.Quantity,
+    TotalPrice = item.TotalPrice
+}).ToList()
+    }).ToList();
+}
 }

@@ -11,4 +11,6 @@ public interface IOrderRepository
     Task<List<Order>> GetOrdersByStatusAsync(OrderStatus status);
      Task<bool> HasUserDeliveredOrdersAsync(string userId , int productId);
     Task<Order?> GetOrderByIdAsync(int orderId);
+     Task<List<Order>> GetOrdersByUserIdAsync(string userId);
+
 }

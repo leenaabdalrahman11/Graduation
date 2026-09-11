@@ -17,15 +17,17 @@ public class CheckoutService : ICheckoutService
 	private readonly IEmailSender _emailSender;
 	private readonly IOrderItemRepository _orderItemRepository;
 	private readonly IProductRepository _productRepository;
+	private readonly ICartService _cartService;
 	public CheckoutService(ICartRepository cartRepository, IOrderRepository orderRepository,
 	UserManager<ApplicationUser> userManager, IEmailSender emailSender,
+	ICartService cartService,
 	IOrderItemRepository orderItemRepository, IProductRepository productRepository)
 	{
 		_cartRepository = cartRepository;
 		_orderRepository = orderRepository;
 		_userManager = userManager;
 		_emailSender = emailSender;
-		_orderItemRepository = orderItemRepository;
+		_cartService = cartService;
 		_orderItemRepository = orderItemRepository;
 		_productRepository = productRepository;
 	}
@@ -77,10 +79,9 @@ public class CheckoutService : ICheckoutService
 				PaymentMethodTypes = new List<string> { "card" },
 				LineItems = new List<SessionLineItemOptions>(),
 				Mode = "payment",
-
-				SuccessUrl = "http://leena12.runasp.net/api/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-				CancelUrl = "http://leena12.runasp.net/api/checkout/cancel",
-
+SuccessUrl = "http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}",
+CancelUrl = "http://localhost:5173/payment-cancel",
+				
 				Metadata = new Dictionary<string, string>
 				{
 					["userId"] = userId
@@ -170,4 +171,51 @@ public class CheckoutService : ICheckoutService
 			Message = "Payment successful."
 		};
 	}
+	public async Task<BaseResponse> CreateOrderAfterPaymentAsync(
+    string userId,
+    string paymentIntentId)
+{
+    var cart = await _cartService.GetUserCartAsync(userId);
+
+    if(cart == null || !cart.Items.Any())
+    {
+        return new BaseResponse
+        {
+            IsSuccess = false,
+            Message = "Cart is empty"
+        };
+    }
+
+
+    var order = new Order
+    {
+        UserId = userId,
+        OrderStatus = OrderStatus.Pending,
+        PaymentStatus = PaymentStatus.Paid,
+        PaymentId = paymentIntentId,
+        AmountPaid = cart.CartTotal,
+        OrderDate = DateTime.UtcNow,
+
+OrderItems = cart.Items.Select(item => new OrderItem
+{
+    ProductId = item.ProductId,
+    Quantity = item.Count,
+    UnitPrice = item.Price,
+    TotalPrice = item.TotalPrice
+
+}).ToList()
+    };
+
+
+await _orderRepository.CreateOrderAsync(order);
+
+    await _cartService.ClearCartAsync(userId);
+
+
+    return new BaseResponse
+    {
+        IsSuccess = true,
+        Message = "Order created successfully"
+    };
+}
 }

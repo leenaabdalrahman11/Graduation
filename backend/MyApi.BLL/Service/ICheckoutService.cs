@@ -10,6 +10,8 @@ public interface ICheckoutService
 {
  Task<CheckoutResponse> ProccesPaymentAsync(CheckoutRequest request, string userId);
  Task<CheckoutResponse> HandleSuccessAsync(string sessionId);
-
+Task<BaseResponse> CreateOrderAfterPaymentAsync(
+    string userId,
+    string paymentIntentId);
 }
 
